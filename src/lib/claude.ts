@@ -49,7 +49,7 @@ async function callWithJsonRetry<T>(
   systemPrompt: string,
   userMessage: string,
   model: string,
-  maxTokens: number = 4096
+  maxTokens: number = 16384
 ): Promise<T> {
   const response = await anthropic.messages.create({
     model,
@@ -363,16 +363,13 @@ export async function generatePersonalPost(
 8. Focus only on PM insights, trends, and frameworks
 9. Positions the author as an innovative, builder-minded PM
 10. Is conversational and sounds genuinely human
+11. Never end with asking the reader a question.
 
 Use the following sample post:
 
-Context Engineering in AI-Driven Product Development using OpenAI's Agent Builder.
+I built an automated pipeline that summarizes and segments my incoming newsletter content using Claude Code. I went from 60+ weekly emails to a single structured digest. Same signal, a fraction of the noise. The real unlock was a scoping framework that forced me to map every workflow exhaustively before writing a single line of logic. That upfront clarity meant less iteration, fewer surprises and a tool that worked closer to right the first time. 🎯
 
-I explored how designing prompts, workflows, and integrations can elevate the process of creating PRDs. Using multi-agent flows, I aligned AI outputs with research insights for better transparency.
-
-One challenge: the orchestrator agent couldn't handle smart routing on its own, so I relied on if/then blocks as a bridge between agents.
-
-The real power came from precise prompts that generate user stories, technical specs, and feature mappings automatically — all grounded in research content.`
+The lesson, for me as a PM: scoping is not slowing down. It is the actual work. Understanding what you are building deeply enough before building it streamlines execution. That is what AI tooling actually unlocks right now, not just speed, but the clarity to make that speed count.`
 
   const userMessage = `Topic: ${topic}
 
