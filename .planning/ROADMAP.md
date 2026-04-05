@@ -121,7 +121,11 @@ Plans:
   3. Workflow 3 research path completes end-to-end — Tavily search + Claude post with source URLs returned
   4. Workflow 3 personal path completes end-to-end — `/api/generate` returns questions, user answers submitted to `/api/followup`, final post returned — all without a `resumeUrl` round-trip to n8n
   5. `N8N_WEBHOOK_URL` and `N8N_FOLLOWUP_WEBHOOK_URL` are absent from `.env.example`; `ANTHROPIC_API_KEY` and `TAVILY_API_KEY` are present
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 07-01-PLAN.md -- Rewrite /api/generate with workflow dispatch to gmail.ts, claude.ts, search.ts
+- [ ] 07-02-PLAN.md -- Rewrite /api/followup with direct Claude dispatch, clean up .env.example
 
 ## Progress
 
@@ -135,5 +139,5 @@ Phases execute in numeric order: 5 -> 6 -> 7
 | 3. Workflow UIs | v1.0 | 5/5 | Complete | - |
 | 4. Error Handling & Deploy | v1.0 | 2/2 | Complete | 2026-03-30 |
 | 5. Auth Hardening | v2.0 | 1/1 | Complete | - |
-| 6. Gmail & AI Libraries | v2.0 | 0/2 | Planning | - |
-| 7. Route Handler Rewrites | v2.0 | 0/? | Not started | - |
+| 6. Gmail & AI Libraries | v2.0 | 2/2 | Complete | - |
+| 7. Route Handler Rewrites | v2.0 | 0/2 | Planning | - |
