@@ -123,7 +123,7 @@ async function callForText(
 function serializeGroupedEmails(grouped: GroupedEmails): string {
   const sections: string[] = []
 
-  for (const [senderEmail, emails] of grouped.entries()) {
+  for (const [senderEmail, emails] of Array.from(grouped.entries())) {
     const senderName = emails[0]?.senderName ?? senderEmail
     const senderHeader = `## Sender: ${senderEmail} (${senderName})`
     const emailSections = emails.map((email: EmailMessage) => {
