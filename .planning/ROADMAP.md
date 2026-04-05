@@ -124,8 +124,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 07-01-PLAN.md -- Rewrite /api/generate with workflow dispatch to gmail.ts, claude.ts, search.ts
-- [ ] 07-02-PLAN.md -- Rewrite /api/followup with direct Claude dispatch, clean up .env.example
+- [x] 07-01-PLAN.md -- Rewrite /api/generate with workflow dispatch to gmail.ts, claude.ts, search.ts
+- [x] 07-02-PLAN.md -- Rewrite /api/followup with direct Claude dispatch, clean up .env.example
 
 ## Progress
 
