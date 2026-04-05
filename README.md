@@ -130,7 +130,7 @@ Open [http://localhost:3000](http://localhost:3000), sign in with Google, and tr
 
 ### Cost notes
 
-- **Claude API:** Haiku is used for summarization (~$0.001/request), Sonnet for post generation (~$0.01/request)
+- **Claude API:** Haiku is used for summarization (~ $0.001/request), Sonnet for post generation (~ $0.01/request)
 - **Tavily:** Free tier includes 1,000 searches/month
 - **Google Cloud:** Gmail API is free
 - **Vercel:** Hobby plan is free
