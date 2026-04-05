@@ -55,6 +55,82 @@ All workflows return formatted results with hashtags, key message summaries, sou
 | `ANTHROPIC_API_KEY` | Anthropic API key for Claude AI |
 | `TAVILY_API_KEY` | Tavily API key for web research |
 
-## Deployment
+## Fork for Yourself
 
-Deploy to [Vercel](https://vercel.com) — import the repo, add environment variables, and add your Vercel domain's callback URL (`https://your-app.vercel.app/api/auth/callback/google`) to Google OAuth redirect URIs.
+Want your own inbox summarized and turned into LinkedIn posts? Here's how to set it up end to end.
+
+### 1. Fork and clone
+
+Fork this repo on GitHub, then:
+
+```bash
+git clone https://github.com/YOUR_USERNAME/linkedin-post-project.git
+cd linkedin-post-project
+npm install
+cp .env.example .env.local
+```
+
+### 2. Google Cloud project
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com) and create a new project
+2. Go to **APIs & Services → Library** → search **Gmail API** → click **Enable**
+3. Go to **Google Auth Platform → Overview** → click **Get Started**
+   - App name: whatever you like
+   - Audience: **External**
+4. Go to **Data Access** → **Add or Remove Scopes** → add `https://www.googleapis.com/auth/gmail.readonly` → Save
+5. Go to **Audience** → **Add Users** → add the Gmail address you want to use
+6. Go to **Clients** → **Create OAuth Client** → **Web application**
+   - Add redirect URI: `http://localhost:3000/api/auth/callback/google`
+   - Copy the **Client ID** and **Client Secret**
+
+### 3. Get API keys
+
+- **Anthropic:** Sign up at [console.anthropic.com](https://console.anthropic.com) and create an API key
+- **Tavily:** Sign up at [tavily.com](https://tavily.com) and get an API key (free tier available)
+
+### 4. Configure environment
+
+Edit `.env.local`:
+
+```
+AUTH_GOOGLE_ID=your-google-client-id
+AUTH_GOOGLE_SECRET=your-google-client-secret
+AUTH_SECRET=run-npx-auth-secret-to-generate
+ALLOWED_EMAIL=your-email@gmail.com
+ANTHROPIC_API_KEY=your-anthropic-key
+TAVILY_API_KEY=your-tavily-key
+```
+
+Generate `AUTH_SECRET` by running:
+
+```bash
+npx auth secret
+```
+
+Set `ALLOWED_EMAIL` to your Gmail address — this is the only account that can sign in.
+
+### 5. Run locally
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000), sign in with Google, and try the workflows.
+
+### 6. Deploy to Vercel
+
+1. Push your fork to GitHub
+2. Go to [vercel.com](https://vercel.com) → **Import Project** → select your repo
+3. Add all environment variables from `.env.local`
+4. Deploy
+5. Add your Vercel URL's callback to Google Cloud OAuth redirect URIs:
+   ```
+   https://your-app.vercel.app/api/auth/callback/google
+   ```
+
+### Cost notes
+
+- **Claude API:** Haiku is used for summarization (~$0.001/request), Sonnet for post generation (~$0.01/request)
+- **Tavily:** Free tier includes 1,000 searches/month
+- **Google Cloud:** Gmail API is free
+- **Vercel:** Hobby plan is free
