@@ -26,7 +26,7 @@ import type {
 // ─── Model constants ──────────────────────────────────────────────────────────
 
 /** Per D-03: lighter model for email summarization and intermediate steps */
-const MODEL_SUMMARIZE = "claude-haiku-4-5"
+const MODEL_SUMMARIZE = "claude-haiku-4-5-20251001"
 
 /** Per D-02: locked for final LinkedIn post generation (user has validated tone) */
 const MODEL_GENERATE = "claude-sonnet-4-6"
