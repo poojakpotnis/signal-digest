@@ -22,6 +22,7 @@ import type {
   Workflow2Data,
   Workflow3ResearchData,
 } from "@/types/workflow"
+import { logger } from "./braintrust"
 
 // ─── Model constants ──────────────────────────────────────────────────────────
 
@@ -153,6 +154,39 @@ function serializeGroupedEmails(grouped: GroupedEmails): string {
 export async function summarizeEmails(
   groupedEmails: GroupedEmails
 ): Promise<Workflow1Data> {
+  return logger.traced(
+    async (span) => {
+      const senders = Array.from(groupedEmails.keys())
+      const emailCount = Array.from(groupedEmails.values()).reduce(
+        (sum, list) => sum + list.length,
+        0
+      )
+
+      const result = await summarizeEmailsImpl(groupedEmails)
+
+      span.log({
+        input: {
+          emails: Object.fromEntries(groupedEmails),
+          dateRange: null,
+        },
+        output: result,
+        metadata: {
+          branch: "summary",
+          model: MODEL_SUMMARIZE,
+          emailCount,
+          senders,
+        },
+      })
+
+      return result
+    },
+    { name: "summarize-newsletters" }
+  )
+}
+
+async function summarizeEmailsImpl(
+  groupedEmails: GroupedEmails
+): Promise<Workflow1Data> {
   const systemPrompt = `You are an AI assistant helping a Product Manager analyze newsletter content. You will receive emails grouped by sender. For each sender, produce one consolidated summary — do not repeat the same point more than once even if it appears across multiple emails from that sender.
 
 For each sender, analyze:
@@ -205,6 +239,32 @@ Do not include any text outside the JSON. Do not wrap in markdown code fences.`
  * Model step 2: claude-sonnet-4-6 (final post generation, locked per D-02)
  */
 export async function generatePost(
+  emailBodies: string[],
+  searchResults?: TavilyResult[]
+): Promise<Workflow2Data> {
+  return logger.traced(
+    async (span) => {
+      const result = await generatePostImpl(emailBodies, searchResults)
+
+      span.log({
+        input: { emails: emailBodies, searchResults: searchResults ?? [] },
+        output: result,
+        metadata: {
+          branch: "linkedin_newsletter",
+          model: MODEL_GENERATE,
+          intermediateModel: MODEL_SUMMARIZE,
+          emailCount: emailBodies.length,
+          influencerResultCount: searchResults?.length ?? 0,
+        },
+      })
+
+      return result
+    },
+    { name: "generate-linkedin-newsletter" }
+  )
+}
+
+async function generatePostImpl(
   emailBodies: string[],
   searchResults?: TavilyResult[]
 ): Promise<Workflow2Data> {
@@ -288,6 +348,30 @@ ${step1Result.keyTopics.join(", ")}`
 export async function generateResearchPost(
   searchResults: TavilyResult[]
 ): Promise<Workflow3ResearchData> {
+  return logger.traced(
+    async (span) => {
+      const result = await generateResearchPostImpl(searchResults)
+
+      span.log({
+        input: { tavilyContext: searchResults },
+        output: result,
+        metadata: {
+          branch: "linkedin_custom",
+          subBranch: "research",
+          model: MODEL_GENERATE,
+          tavilyResultCount: searchResults.length,
+        },
+      })
+
+      return result
+    },
+    { name: "generate-linkedin-custom" }
+  )
+}
+
+async function generateResearchPostImpl(
+  searchResults: TavilyResult[]
+): Promise<Workflow3ResearchData> {
   const systemPrompt = `You are a research assistant helping a Product Manager create a LinkedIn post from research findings. Analyze the provided research results and create a compelling LinkedIn post with supporting insights.
 
 You MUST respond with ONLY valid JSON in this exact format:
@@ -327,6 +411,28 @@ Do not include any text outside the JSON.`
  * - Returns plain numbered list string (no JSON needed per D-11)
  */
 export async function generateQuestions(topic: string): Promise<string> {
+  return logger.traced(
+    async (span) => {
+      const result = await generateQuestionsImpl(topic)
+
+      span.log({
+        input: { topic },
+        output: result,
+        metadata: {
+          branch: "linkedin_custom_personal",
+          subBranch: "clarifying-questions",
+          model: MODEL_GENERATE,
+          topic,
+        },
+      })
+
+      return result
+    },
+    { name: "generate-clarifying-questions" }
+  )
+}
+
+async function generateQuestionsImpl(topic: string): Promise<string> {
   const systemPrompt = `You are a LinkedIn content strategist helping a Senior Product Manager share their personal experiences and achievements.
 
 The user has shared a brief topic. Your job right now is NOT to write the post yet. Ask 3-4 specific clarifying questions that will help you write a much better post. Ask about the specific problem solved, biggest challenge or learning, outcome achieved, and who their LinkedIn audience is.
@@ -348,6 +454,31 @@ Return ONLY the questions as a numbered list. Nothing else.`
  * - Returns plain string (no JSON needed per D-11)
  */
 export async function generatePersonalPost(
+  topic: string,
+  answers: string
+): Promise<string> {
+  return logger.traced(
+    async (span) => {
+      const result = await generatePersonalPostImpl(topic, answers)
+
+      span.log({
+        input: { topic, answers },
+        output: result,
+        metadata: {
+          branch: "linkedin_custom_personal",
+          subBranch: "final-post",
+          model: MODEL_GENERATE,
+          topic,
+        },
+      })
+
+      return result
+    },
+    { name: "generate-personal-post" }
+  )
+}
+
+async function generatePersonalPostImpl(
   topic: string,
   answers: string
 ): Promise<string> {
