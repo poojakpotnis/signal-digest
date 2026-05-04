@@ -17,6 +17,28 @@ export interface EmailMessage {
 
 export type GroupedEmails = Map<string, EmailMessage[]>
 
+// ─── Sender allowlist ─────────────────────────────────────────────────────────
+
+/**
+ * Gmail fetches are restricted to mail from these senders.
+ * Edit this list to adjust which newsletter sources the app processes.
+ */
+const ALLOWED_SENDERS: readonly string[] = [
+  "aakashgupta@substack.com",
+  "amankhan1@substack.com",
+  "avi@dailydoseofds.com",
+  "hamel_husain@parlance-labs.com",
+  "hello@faveeo.com",
+  "info@theinformation.com",
+  "lenny@substack.com",
+  "mahesh-yadav@courses.maven.com",
+  "natesnewsletter@substack.com",
+  "superhuman@mail.joinsuperhuman.ai",
+  "talraviv@substack.com",
+  "theaibreak@substack.com",
+  "thebatch@deeplearning.ai",
+]
+
 // ─── Internal Gmail API response types ───────────────────────────────────────
 
 interface GmailPart {
@@ -206,7 +228,8 @@ export async function fetchEmails(
   startDate: Date,
   endDate: Date
 ): Promise<GroupedEmails> {
-  const query = `category:updates after:${formatDateForGmail(startDate)} before:${formatDateForGmail(endDate)}`
+  const senderClause = `from:(${ALLOWED_SENDERS.join(" OR ")})`
+  const query = `category:updates ${senderClause} after:${formatDateForGmail(startDate)} before:${formatDateForGmail(endDate)}`
 
   const messageIds = await listMessageIds(accessToken, query)
 
