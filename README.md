@@ -1,4 +1,4 @@
-# LinkedIn Content Generator
+# Signal Digest
 
 A single-user web app that turns Gmail newsletter emails and custom topics into polished LinkedIn posts using Claude AI and Tavily web research.
 
@@ -64,8 +64,8 @@ Want your own inbox summarized and turned into LinkedIn posts? Here's how to set
 Fork this repo on GitHub, then:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/linkedin-post-project.git
-cd linkedin-post-project
+git clone https://github.com/YOUR_USERNAME/signal-digest.git
+cd signal-digest
 npm install
 cp .env.example .env.local
 ```

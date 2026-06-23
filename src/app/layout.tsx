@@ -15,7 +15,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "LinkedIn Content Generator",
+  title: "Signal Digest",
   description: "AI-powered LinkedIn post generator",
 };
 

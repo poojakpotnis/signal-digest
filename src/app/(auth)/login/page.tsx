@@ -21,7 +21,7 @@ function LoginContent() {
     <div className="flex min-h-screen items-center justify-center bg-muted/40">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">LinkedIn Content Generator</CardTitle>
+          <CardTitle className="text-2xl">Signal Digest</CardTitle>
           <CardDescription>Sign in to generate AI-powered LinkedIn posts</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-4">

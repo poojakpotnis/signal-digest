@@ -11,10 +11,12 @@ interface Props {
   initial: string[]
 }
 
+type Notice = { kind: "error" | "info"; message: string }
+
 export function SendersEditor({ initial }: Props) {
   const [senders, setSenders] = useState<string[]>(initial)
   const [newSender, setNewSender] = useState("")
-  const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle")
 
   const dirty = JSON.stringify(senders) !== JSON.stringify(initial)
@@ -23,28 +25,28 @@ export function SendersEditor({ initial }: Props) {
     const value = newSender.trim().toLowerCase()
     if (!value) return
     if (!EMAIL_RE.test(value)) {
-      setError(`"${value}" is not a valid email address`)
+      setNotice({ kind: "error", message: `"${value}" is not a valid email address` })
       return
     }
     if (senders.includes(value)) {
-      setError(`${value} is already in the list`)
+      setNotice({ kind: "info", message: `${value} is already in the list` })
       return
     }
     setSenders([...senders, value].sort())
     setNewSender("")
-    setError(null)
+    setNotice(null)
     setStatus("idle")
   }
 
   function removeSender(addr: string) {
     setSenders(senders.filter((s) => s !== addr))
-    setError(null)
+    setNotice(null)
     setStatus("idle")
   }
 
   async function save() {
     setStatus("saving")
-    setError(null)
+    setNotice(null)
     try {
       const res = await fetch("/api/settings/senders", {
         method: "PUT",
@@ -55,7 +57,10 @@ export function SendersEditor({ initial }: Props) {
       if (!res.ok) throw new Error(data.error ?? "Failed to save")
       setStatus("saved")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save")
+      setNotice({
+        kind: "error",
+        message: err instanceof Error ? err.message : "Failed to save",
+      })
       setStatus("idle")
     }
   }
@@ -110,9 +115,16 @@ export function SendersEditor({ initial }: Props) {
         </Button>
       </div>
 
-      {error && (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
+      {notice && (
+        <p
+          className={
+            notice.kind === "error"
+              ? "text-sm text-destructive"
+              : "text-sm text-muted-foreground"
+          }
+          role={notice.kind === "error" ? "alert" : "status"}
+        >
+          {notice.message}
         </p>
       )}
 

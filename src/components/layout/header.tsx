@@ -12,7 +12,7 @@ export function Header({ user }: HeaderProps) {
   return (
     <header className="h-14 bg-card border-b border-border flex items-center justify-between px-6">
       <Link href="/dashboard" className="text-base font-semibold hover:underline">
-        LinkedIn Content Generator
+        Signal Digest
       </Link>
       <div className="flex items-center gap-4">
         <span className="text-sm text-muted-foreground">{user.name ?? user.email}</span>

@@ -80,6 +80,12 @@ export async function setAllowedSenders(senders: string[]): Promise<string[]> {
 
   if (useKV) {
     await kv.set(KV_KEY, cleaned)
+  } else if (process.env.VERCEL) {
+    // Vercel serverless filesystem is read-only — the file fallback can never
+    // succeed here. Surface a clear setup hint instead of an ENOENT.
+    throw new Error(
+      "Allowlist storage is not configured. Connect Upstash Redis from the Vercel Marketplace and redeploy."
+    )
   } else {
     await fs.mkdir(path.dirname(FILE_STORE_PATH), { recursive: true })
     await fs.writeFile(FILE_STORE_PATH, JSON.stringify(cleaned, null, 2), "utf-8")
