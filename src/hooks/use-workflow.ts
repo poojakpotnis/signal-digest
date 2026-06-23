@@ -55,7 +55,11 @@ export function useWorkflow<T>(options: UseWorkflowOptions) {
     }
     // Stash any additional top-level fields (e.g. sourceMessageIds) on state.meta
     // so pages can read them without coupling to the typed data shape.
-    const { data: _d, output: _o, stage: _s, resumeUrl: _r, ...meta } = json
+    const meta: Record<string, unknown> = { ...json }
+    delete meta.data
+    delete meta.output
+    delete meta.stage
+    delete meta.resumeUrl
     setState({
       status: "result",
       data: result as T,
