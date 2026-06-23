@@ -17,27 +17,9 @@ export interface EmailMessage {
 
 export type GroupedEmails = Map<string, EmailMessage[]>
 
-// ─── Sender allowlist ─────────────────────────────────────────────────────────
+// Sender allowlist now lives in src/lib/sender-allowlist.ts (persisted, editable from UI).
 
-/**
- * Gmail fetches are restricted to mail from these senders.
- * Edit this list to adjust which newsletter sources the app processes.
- */
-const ALLOWED_SENDERS: readonly string[] = [
-  "aakashgupta@substack.com",
-  "amankhan1@substack.com",
-  "avi@dailydoseofds.com",
-  "hamel_husain@parlance-labs.com",
-  "hello@faveeo.com",
-  "info@theinformation.com",
-  "lenny@substack.com",
-  "mahesh-yadav@courses.maven.com",
-  "natesnewsletter@substack.com",
-  "superhuman@mail.joinsuperhuman.ai",
-  "talraviv@substack.com",
-  "theaibreak@substack.com",
-  "thebatch@deeplearning.ai",
-]
+import { getAllowedSenders } from "./sender-allowlist"
 
 // ─── Internal Gmail API response types ───────────────────────────────────────
 
@@ -228,7 +210,8 @@ export async function fetchEmails(
   startDate: Date,
   endDate: Date
 ): Promise<GroupedEmails> {
-  const senderClause = `from:(${ALLOWED_SENDERS.join(" OR ")})`
+  const allowedSenders = await getAllowedSenders()
+  const senderClause = `from:(${allowedSenders.join(" OR ")})`
   const query = `category:updates ${senderClause} after:${formatDateForGmail(startDate)} before:${formatDateForGmail(endDate)}`
 
   const messageIds = await listMessageIds(accessToken, query)
@@ -265,4 +248,93 @@ export async function fetchEmails(
   }
 
   return grouped
+}
+
+// ─── Label / move helpers ─────────────────────────────────────────────────────
+
+interface GmailLabel {
+  id: string
+  name: string
+}
+
+interface GmailLabelsResponse {
+  labels?: GmailLabel[]
+}
+
+/**
+ * Returns the ID of a user label by name, creating it if it does not exist.
+ * Requires gmail.modify scope.
+ */
+export async function getOrCreateLabel(
+  accessToken: string,
+  labelName: string
+): Promise<string> {
+  const listRes = await fetch(
+    "https://gmail.googleapis.com/gmail/v1/users/me/labels",
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  )
+  if (!listRes.ok) {
+    throw new Error(`Gmail labels list error: ${listRes.status}`)
+  }
+  const listData = (await listRes.json()) as GmailLabelsResponse
+  const existing = (listData.labels ?? []).find((l) => l.name === labelName)
+  if (existing) return existing.id
+
+  const createRes = await fetch(
+    "https://gmail.googleapis.com/gmail/v1/users/me/labels",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: labelName,
+        labelListVisibility: "labelShow",
+        messageListVisibility: "show",
+      }),
+    }
+  )
+  if (!createRes.ok) {
+    throw new Error(`Gmail label create error: ${createRes.status}`)
+  }
+  const created = (await createRes.json()) as GmailLabel
+  return created.id
+}
+
+/**
+ * Moves messages to a label — adds labelId and removes INBOX, mirroring the
+ * behaviour of Gmail's "Move to" action in the UI.
+ * Uses batchModify (single call, up to 1000 IDs per request).
+ */
+export async function moveMessagesToLabel(
+  accessToken: string,
+  messageIds: string[],
+  labelId: string
+): Promise<void> {
+  if (messageIds.length === 0) return
+
+  // batchModify accepts at most 1000 IDs per request — chunk to be safe.
+  const CHUNK = 1000
+  for (let i = 0; i < messageIds.length; i += CHUNK) {
+    const slice = messageIds.slice(i, i + CHUNK)
+    const res = await fetch(
+      "https://gmail.googleapis.com/gmail/v1/users/me/messages/batchModify",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ids: slice,
+          addLabelIds: [labelId],
+          removeLabelIds: ["INBOX"],
+        }),
+      }
+    )
+    if (!res.ok) {
+      throw new Error(`Gmail batchModify error: ${res.status}`)
+    }
+  }
 }

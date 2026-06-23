@@ -11,7 +11,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           access_type: "offline",
           response_type: "code",
           scope:
-            "openid email profile https://www.googleapis.com/auth/gmail.readonly",
+            "openid email profile https://www.googleapis.com/auth/gmail.modify",
         },
       },
     }),

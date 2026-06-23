@@ -53,7 +53,14 @@ export function useWorkflow<T>(options: UseWorkflowOptions) {
     if (Array.isArray(result) && result.length > 0 && (result[0] as Record<string, unknown>).output !== undefined) {
       result = (result as Record<string, unknown>[]).map((item) => item.output)
     }
-    setState({ status: "result", data: result as T })
+    // Stash any additional top-level fields (e.g. sourceMessageIds) on state.meta
+    // so pages can read them without coupling to the typed data shape.
+    const { data: _d, output: _o, stage: _s, resumeUrl: _r, ...meta } = json
+    setState({
+      status: "result",
+      data: result as T,
+      meta: Object.keys(meta).length > 0 ? meta : undefined,
+    })
   }
 
   async function handleFetch(res: Response) {

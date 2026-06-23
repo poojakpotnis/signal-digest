@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { useWorkflow } from "@/hooks/use-workflow"
 import { LoadingState } from "@/components/workflow/loading-state"
 import { ResultDisplay } from "@/components/workflow/result-display"
+import { MoveToLabelAction } from "@/components/workflow/move-to-label"
 import type { Workflow1Data } from "@/types/workflow"
 
 const WORKFLOW1_STAGES = [
@@ -157,11 +158,19 @@ export default function EmailSummaryPage() {
                   </CardContent>
                 </Card>
               ) : (
-                <ResultDisplay
-                  workflowType="email_summary"
-                  data={state.data}
-                  onReset={() => reset()}
-                />
+                <>
+                  <ResultDisplay
+                    workflowType="email_summary"
+                    data={state.data}
+                    onReset={() => reset()}
+                  />
+                  <MoveToLabelAction
+                    messageIds={
+                      (state.meta?.sourceMessageIds as string[] | undefined) ?? []
+                    }
+                    labelName="ToBeDeleted"
+                  />
+                </>
               )}
             </>
           )}

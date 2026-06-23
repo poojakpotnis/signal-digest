@@ -52,11 +52,16 @@ export async function POST(req: NextRequest) {
 
         // Short-circuit empty results (D-06 empty_result path)
         if (groupedEmails.size === 0) {
-          return NextResponse.json({ data: [] })
+          return NextResponse.json({ data: [], sourceMessageIds: [] })
+        }
+
+        const sourceMessageIds: string[] = []
+        for (const emails of Array.from(groupedEmails.values())) {
+          for (const email of emails) sourceMessageIds.push(email.id)
         }
 
         const summaries = await summarizeEmails(groupedEmails)
-        return NextResponse.json({ data: summaries })
+        return NextResponse.json({ data: summaries, sourceMessageIds })
       }
 
       case "linkedin_post": {

@@ -3,7 +3,7 @@ export type WorkflowState<T> =
   | { status: "idle" }
   | { status: "loading"; stage: number; stageCount: number }
   | { status: "questions"; questions: string; resumeUrl: string }
-  | { status: "result"; data: T }
+  | { status: "result"; data: T; meta?: Record<string, unknown> }
   | { status: "error"; message: string; code?: "auth_expired" | "timeout" | "empty_result" | "generic" }
 
 // Workflow 1 — Email Summary
