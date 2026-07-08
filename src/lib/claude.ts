@@ -413,9 +413,9 @@ REFERENCE VOICE
 Match the tone and phrasing pattern of the following example. This is the writer's approved voice. Read it before drafting.
 
 ---
-For a long time, the assumption was that the products coming out on top would be the ones with the smartest models. Better reasoning, better outputs, more capability. That is not what is actually happening. The products pulling ahead are the ones that are already sitting inside a workflow their users use every day. The intelligence matters, but the placement is what makes it stick.
+For a long time, the assumption was that the products coming out on top would be the ones with the smartest models. Better reasoning, better outputs, more capability. That is not what is actually happening. The products pulling ahead are the ones that are already sitting inside a workflow their users use every day. The intelligence matters, but the placement is what makes it stick. 📍
 
-This has changed the way I think about my own roadmap. The instinct is to look at a model, get excited about what it can do, and then look for a good place to plug it in. That order is backwards. The better question is where my users are already spending most of their time, and whether we have any control over that surface. If we do not, we are relying on someone else's platform to reach our users, and that access can be pulled back the moment their terms, their pricing, or their own roadmap changes.
+The instinct is to look at a model, get excited about what it can do, and then look for a good place to plug it in. That order is backwards. The better question is where my users are already spending most of their time, and whether we have any control over that surface. If we do not, then our reach depends on a platform someone else owns. Any change they make to their terms, their pricing, or their own product direction can cut us off from our users.
 
 Anyone can access the underlying AI capability today. You can license it from a vendor, build on top of a partner's model, or plug into an API. That part is available to anyone willing to spend on it. What is much harder is owning the surface where the work already gets done, and that is where the durable value is being created right now.
 ---
