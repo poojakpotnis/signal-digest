@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ChevronLeft } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { ChevronLeft, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -10,7 +11,7 @@ import { useWorkflow } from "@/hooks/use-workflow"
 import { LoadingState } from "@/components/workflow/loading-state"
 import { ResultDisplay } from "@/components/workflow/result-display"
 import { MoveToLabelAction } from "@/components/workflow/move-to-label"
-import type { Workflow1Data } from "@/types/workflow"
+import { TRENDS_HANDOFF_KEY, type Workflow1Data } from "@/types/workflow"
 
 const WORKFLOW1_STAGES = [
   "Fetching your emails...",
@@ -29,6 +30,7 @@ function validateDateRange(start: string, end: string): string | null {
 }
 
 export default function EmailSummaryPage() {
+  const router = useRouter()
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const { state, stages, submit, reset, retry } = useWorkflow<Workflow1Data>({ stages: WORKFLOW1_STAGES })
@@ -41,6 +43,19 @@ export default function EmailSummaryPage() {
       start_date: startDate,
       end_date: endDate,
     })
+  }
+
+  function handleAnalyzeTrends() {
+    if (state.status !== "result" || state.data.length === 0) return
+    const payload = {
+      summaries: state.data,
+      dateRange:
+        (state.meta?.dateRange as string | undefined) ?? "recent",
+    }
+    try {
+      sessionStorage.setItem(TRENDS_HANDOFF_KEY, JSON.stringify(payload))
+    } catch { /* sessionStorage may fail in private mode — trends page handles empty */ }
+    router.push("/dashboard/trends")
   }
 
   return (
@@ -164,6 +179,22 @@ export default function EmailSummaryPage() {
                     data={state.data}
                     onReset={() => reset()}
                   />
+                  <Card className="mt-6">
+                    <CardContent className="p-4 flex items-center justify-between gap-4 flex-wrap">
+                      <div>
+                        <div className="text-sm font-medium flex items-center gap-2">
+                          <TrendingUp className="size-4" aria-hidden="true" />
+                          Ready for the next step?
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Analyze cross-sender trends and draft a LinkedIn post from these summaries.
+                        </div>
+                      </div>
+                      <Button size="sm" onClick={handleAnalyzeTrends}>
+                        Analyze trends &amp; draft post
+                      </Button>
+                    </CardContent>
+                  </Card>
                   <MoveToLabelAction
                     messageIds={
                       (state.meta?.sourceMessageIds as string[] | undefined) ?? []

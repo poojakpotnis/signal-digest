@@ -1,9 +1,28 @@
 import { auth } from "@/auth"
 import { NextRequest, NextResponse } from "next/server"
 import { fetchEmails } from "@/lib/gmail"
-import { summarizeEmails, generatePost, generateResearchPost, generateQuestions } from "@/lib/claude"
+import {
+  summarizeEmails,
+  generatePost,
+  generatePostFromSummaries,
+  generateResearchPost,
+  generateQuestions,
+  generateTrends,
+} from "@/lib/claude"
 import { search } from "@/lib/search"
 import type { TavilyResult } from "@/lib/search"
+import { getRecentTrends, saveTrendSnapshot } from "@/lib/trends"
+import type { TrendSnapshot } from "@/types/workflow"
+
+const LEADER_QUERY =
+  '"Lenny Rachitsky" OR "Shreyas Doshi" OR "Marty Cagan" AI product management'
+
+function formatDateRange(start: Date, end: Date): string {
+  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }
+  const startStr = start.toLocaleDateString("en-US", opts)
+  const endStr = end.toLocaleDateString("en-US", { ...opts, year: "numeric" })
+  return `${startStr}–${endStr}`
+}
 
 export async function POST(req: NextRequest) {
   // 1. Auth check
@@ -61,7 +80,74 @@ export async function POST(req: NextRequest) {
         }
 
         const summaries = await summarizeEmails(groupedEmails)
-        return NextResponse.json({ data: summaries, sourceMessageIds })
+        return NextResponse.json({
+          data: summaries,
+          sourceMessageIds,
+          dateRange: formatDateRange(startDate, endDate),
+        })
+      }
+
+      case "trends": {
+        if (!Array.isArray(body.summaries) || body.summaries.length === 0) {
+          return NextResponse.json(
+            { error: "summaries are required" },
+            { status: 400 }
+          )
+        }
+        const dateRange =
+          typeof body.dateRange === "string" && body.dateRange.length > 0
+            ? body.dateRange
+            : "recent"
+
+        let priorTrends: TrendSnapshot[] = []
+        try {
+          priorTrends = await getRecentTrends()
+        } catch (err) {
+          console.warn("[api/generate] trends read failed:", err)
+        }
+
+        let leaderResults: TavilyResult[] = []
+        try {
+          leaderResults = await search(LEADER_QUERY, { maxResults: 3 })
+        } catch (err) {
+          console.warn("[api/generate] leader search failed:", err)
+        }
+
+        const partial = await generateTrends(
+          body.summaries as Parameters<typeof generateTrends>[0],
+          leaderResults,
+          priorTrends,
+          dateRange
+        )
+        const trends: TrendSnapshot = {
+          ...partial,
+          timestamp: new Date().toISOString(),
+        }
+        try {
+          await saveTrendSnapshot(trends)
+        } catch (err) {
+          console.warn("[api/generate] trends persist failed:", err)
+        }
+
+        return NextResponse.json({ data: trends, priorTrends })
+      }
+
+      case "linkedin_post_from_summaries": {
+        if (!Array.isArray(body.summaries) || body.summaries.length === 0) {
+          return NextResponse.json(
+            { error: "summaries are required" },
+            { status: 400 }
+          )
+        }
+        const trend =
+          body.trend && typeof body.trend === "object"
+            ? (body.trend as TrendSnapshot)
+            : undefined
+        const post = await generatePostFromSummaries(
+          body.summaries as Parameters<typeof generatePostFromSummaries>[0],
+          trend
+        )
+        return NextResponse.json({ data: post })
       }
 
       case "linkedin_post": {

@@ -21,6 +21,7 @@ import type {
   EmailSummaryItem,
   Workflow2Data,
   Workflow3ResearchData,
+  TrendSnapshot,
 } from "@/types/workflow"
 import { logger } from "./braintrust"
 
@@ -333,6 +334,264 @@ ${step1Result.keyTopics.join(", ")}`
   )
 
   return post.trim()
+}
+
+/**
+ * Generates a LinkedIn post directly from already-computed per-sender summaries
+ * plus an optional trend snapshot for framing. Skips the fetch + intermediate
+ * summarize step of generatePost() — the Workflow 1 output is a better foundation
+ * than a fresh one-shot summary of raw email bodies.
+ *
+ * Model: claude-sonnet-4-6 (per D-02, locked for post generation)
+ */
+export async function generatePostFromSummaries(
+  summaries: Workflow1Data,
+  trend?: TrendSnapshot
+): Promise<Workflow2Data> {
+  return logger.traced(
+    async (span) => {
+      const result = await generatePostFromSummariesImpl(summaries, trend)
+      span.log({
+        input: { summaries, trend: trend ?? null },
+        output: result,
+        metadata: {
+          branch: "linkedin_newsletter_from_summaries",
+          model: MODEL_GENERATE,
+          senderCount: summaries.length,
+          usedTrend: !!trend,
+        },
+      })
+      return result
+    },
+    { name: "generate-linkedin-newsletter-from-summaries" }
+  )
+}
+
+async function generatePostFromSummariesImpl(
+  summaries: Workflow1Data,
+  trend?: TrendSnapshot
+): Promise<Workflow2Data> {
+  const systemPrompt = `You are helping a senior Product Manager write a LinkedIn post. You will receive structured per-sender newsletter summaries (each with key topics and actionable insights), and optionally a trend snapshot that already identified cross-sender themes and where AI is heading. Use them to craft ONE post.
+
+VOICE
+
+The writer is already a strategic operator. Position them by what they think about (roadmap decisions, where their team invests, how they read the industry), not by naming their level. Never write anything that positions them as aspiring, learning-on-the-job, catching up, or newly realizing something. Do not use phrases like "aspiring Senior PM", "as a PM aspiring to senior", "I finally realized", "it clicked for me", "I used to be wrong", "it took me a while", "it has taken me a while to see", or any variant that suggests slowness or being late to an insight.
+
+Never make the post sound like a directive to a team or coworkers. Their coworkers may see this post. Do not include lines like "That is what I want my team focused on this year" or anything that reads as an internal memo.
+
+Never open with a meta reveal about the source. Do not start with "I have been reading through newsletters", "This week I noticed in my inbox", or anything that names how the insight was gathered.
+
+Do not use stock aphorisms or crafted parallel constructions. Lines like "Capability I can borrow. Presence I have to earn." feel too written. Prefer flowing complete sentences that a reader can follow on one pass.
+
+READABILITY
+
+Plain, everyday language. Explain ideas fully. If a phrase is a metaphor, spell out what it means concretely. For example, instead of "borrowed access can be taken back", write "we are relying on someone else's platform to reach our users, and that access can be pulled back the moment their terms, their pricing, or their own roadmap changes."
+
+There is no hard length limit. Clarity beats brevity. If a paragraph is not adding a new beat, cut it. If a sentence is compressed to the point of being cryptic, expand it.
+
+STRUCTURE
+
+Aim for three distinct beats and do NOT repeat the same idea across paragraphs. A typical shape:
+1. The observation. A shift, pattern, or claim about the industry.
+2. The implication. How this changes how the writer thinks about their own work (roadmap, prioritization, evaluation).
+3. The closer. Where the durable value or the strategic edge actually lives.
+
+Each beat must add something new. If a later paragraph mostly restates the thesis in different words, cut it.
+
+MECHANICS
+
+- No bullet points.
+- No em dashes ever. If you need a break in a sentence, use a comma or a period.
+- Max 2 emojis. Zero is fine.
+- Do not promote courses, tools, or offers.
+- Never name specific companies, products, or brands. Speak in general terms about the pattern. For example, instead of "DeepSeek partnering with Huawei", say "AI firms trading independence for infrastructure reach".
+- Do not restate sender names, source newsletters, or trend labels literally. Synthesize a POV, do not report a digest.
+- Do not end with a question aimed at the reader.
+
+REFERENCE VOICE
+
+Match the tone and phrasing pattern of the following example. This is the writer's approved voice. Read it before drafting.
+
+---
+For a long time, the assumption was that the products coming out on top would be the ones with the smartest models. Better reasoning, better outputs, more capability. That is not what is actually happening. The products pulling ahead are the ones that are already sitting inside a workflow their users use every day. The intelligence matters, but the placement is what makes it stick.
+
+This has changed the way I think about my own roadmap. The instinct is to look at a model, get excited about what it can do, and then look for a good place to plug it in. That order is backwards. The better question is where my users are already spending most of their time, and whether we have any control over that surface. If we do not, we are relying on someone else's platform to reach our users, and that access can be pulled back the moment their terms, their pricing, or their own roadmap changes.
+
+Anyone can access the underlying AI capability today. You can license it from a vendor, build on top of a partner's model, or plug into an API. That part is available to anyone willing to spend on it. What is much harder is owning the surface where the work already gets done, and that is where the durable value is being created right now.
+---
+
+Return ONLY the post text. No preamble, no markdown, no title.`
+
+  const summarySection = summaries
+    .map(
+      (s) =>
+        `### ${s.senderEmail} (${s.dateRange})\n${s.summary}${
+          s.keyTopics && s.keyTopics.length > 0
+            ? `\nKey topics: ${s.keyTopics.join(", ")}`
+            : ""
+        }${
+          s.actionableInsights && s.actionableInsights.length > 0
+            ? `\nActionable insights: ${s.actionableInsights.join("; ")}`
+            : ""
+        }`
+    )
+    .join("\n\n")
+
+  const trendSection = trend
+    ? `\n\n## Trend Snapshot
+Themes: ${trend.themes.map((t) => `${t.theme} (${t.senderCount} senders)`).join("; ")}
+Where AI is heading: ${trend.aiDirection}
+Sr PM takeaways to weave in when relevant: ${trend.srPmTakeaways.join("; ")}`
+    : ""
+
+  const userMessage = `## Per-Sender Summaries
+${summarySection}${trendSection}`
+
+  const post = await callForText(systemPrompt, userMessage, MODEL_GENERATE)
+  return post.trim()
+}
+
+/**
+ * Analyzes a batch of sender summaries + light PM-leader web context to produce
+ * a Trend Snapshot: consolidated themes with sender counts, a short narrative on
+ * where AI is heading, and Sr PM-focused takeaways.
+ *
+ * Model: claude-haiku-4-5 (per D-03 — light synthesis over already-summarized text)
+ *
+ * Prior snapshots are passed in for continuity context so the model can note
+ * whether a theme is rising/steady/new relative to the recent history, but the
+ * evolution rendering itself is handled client-side.
+ */
+export async function generateTrends(
+  summaries: Workflow1Data,
+  leaderResults: TavilyResult[],
+  priorSnapshots: TrendSnapshot[],
+  dateRange: string
+): Promise<Omit<TrendSnapshot, "timestamp">> {
+  return logger.traced(
+    async (span) => {
+      const result = await generateTrendsImpl(
+        summaries,
+        leaderResults,
+        priorSnapshots,
+        dateRange
+      )
+      span.log({
+        input: { summaries, leaderResults, priorSnapshots, dateRange },
+        output: result,
+        metadata: {
+          branch: "trends",
+          model: MODEL_SUMMARIZE,
+          senderCount: summaries.length,
+          leaderResultCount: leaderResults.length,
+          priorRunCount: priorSnapshots.length,
+        },
+      })
+      return result
+    },
+    { name: "generate-trends" }
+  )
+}
+
+async function generateTrendsImpl(
+  summaries: Workflow1Data,
+  leaderResults: TavilyResult[],
+  priorSnapshots: TrendSnapshot[],
+  dateRange: string
+): Promise<Omit<TrendSnapshot, "timestamp">> {
+  const systemPrompt = `You are a strategic analyst helping a Product Manager who is aspiring to become a Senior PM stay ahead of AI industry trends.
+
+You will receive:
+- Per-sender newsletter summaries covering a specific date range
+- Recent commentary from industry PM leaders (Lenny Rachitsky, Shreyas Doshi, Marty Cagan, and similar)
+- Prior trend snapshots from the past 6 months for continuity
+
+Your job:
+1. Identify the 3–6 most important cross-sender themes for this date range. For each theme, list the sender emails that discussed it. Consolidate near-duplicates.
+2. Write a 2–3 sentence narrative on where AI is heading based on this batch, calibrated against prior snapshots when relevant.
+3. Produce 3–5 aspirational takeaways for a PM aspiring to a Sr PM role — concrete skills, framings, or moves they should invest in, NOT generic advice.
+4. Surface 2–4 leader voices from the provided web context that reinforce the themes. Each must include the leader's name, source URL, and a one-sentence snippet.
+5. Score how post-worthy this batch is for a PM's LinkedIn audience: "high" (a genuinely fresh angle or a strong pattern worth a public POV), "medium" (usable but nothing especially novel), "low" (mostly restating well-known ideas). Include a one-sentence reason.
+
+Rules:
+- Aspirational Sr PM takeaways should be specific and actionable ("Practice framing feature bets as evaluated experiments with clear success signals" NOT "Get better at experimentation").
+- If prior snapshots exist, note in the narrative whether the batch's core themes are rising, steady, or new.
+- Never fabricate leader URLs — only use URLs from the provided results.
+- Never fabricate senders — only reference senderEmails that appear in the summaries input.
+- Default postWorthy to "low" if you are unsure.
+
+Respond with ONLY valid JSON in this exact format, no markdown fences:
+{
+  "dateRange": "human-readable date range",
+  "themes": [
+    {
+      "theme": "short label (2-5 words)",
+      "senderCount": 3,
+      "senders": ["a@x.com", "b@x.com", "c@x.com"],
+      "description": "1-2 sentence description"
+    }
+  ],
+  "aiDirection": "2-3 sentence narrative",
+  "srPmTakeaways": ["takeaway 1", "takeaway 2", "takeaway 3"],
+  "leaderVoices": [
+    { "name": "Leader Name", "url": "https://...", "snippet": "one sentence" }
+  ],
+  "postWorthy": "high",
+  "postWorthyReason": "one sentence"
+}`
+
+  const summarySection = summaries
+    .map(
+      (s) =>
+        `### ${s.senderEmail} (${s.dateRange})\n${s.summary}${
+          s.keyTopics && s.keyTopics.length > 0
+            ? `\nKey topics: ${s.keyTopics.join(", ")}`
+            : ""
+        }${
+          s.actionableInsights && s.actionableInsights.length > 0
+            ? `\nActionable insights: ${s.actionableInsights.join("; ")}`
+            : ""
+        }`
+    )
+    .join("\n\n")
+
+  const leaderSection =
+    leaderResults.length > 0
+      ? leaderResults
+          .map((r) => `- ${r.title} — ${r.content} (Source: ${r.url})`)
+          .join("\n")
+      : "(none returned)"
+
+  const priorSection =
+    priorSnapshots.length > 0
+      ? priorSnapshots
+          .slice(-6) // last 6 for prompt budget
+          .map(
+            (p) =>
+              `- ${p.dateRange} (${p.timestamp.slice(0, 10)}): themes = ${p.themes
+                .map((t) => t.theme)
+                .join(", ")}`
+          )
+          .join("\n")
+      : "(no prior snapshots yet)"
+
+  const userMessage = `## Date Range
+${dateRange}
+
+## Per-Sender Summaries
+${summarySection}
+
+## Recent PM Leader Commentary
+${leaderSection}
+
+## Prior Trend Snapshots (last 6 months)
+${priorSection}`
+
+  return callWithJsonRetry<Omit<TrendSnapshot, "timestamp">>(
+    systemPrompt,
+    userMessage,
+    MODEL_SUMMARIZE
+  )
 }
 
 /**
